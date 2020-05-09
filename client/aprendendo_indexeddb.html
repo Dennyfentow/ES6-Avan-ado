@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Aprendendo IndexedDB</title>
+</head>
+
+<body>
+    <script src="js/app/models/Negociacao.js"></script>
+    <script src="js/app/services/ConnectionFactory.js"></script>
+    <script>
+
+        var connection;
+        var openRequest = window.indexedDB.open('aluraframe', 3);
+
+        openRequest.onupgradeneeded = e => {
+            console.log('cria ou altera um banco ja existente!');
+
+            let minhaConnection = e.target.result;
+
+            if (minhaConnection.objectStoreNames.contains('negociacoes')) {
+                minhaConnection.deleteObjectStore('negociacoes');
+            }
+
+            minhaConnection.createObjectStore('negociacoes', { autoIncrement: true });
+
+        };
+        openRequest.onsuccess = e => {
+            connection = e.target.result;
+            console.log('conexão obtida com sucesso!');
+        };
+        openRequest.onerror = e => {
+            console.log('erro: ' + e.target.error);
+        };
+
+        function adiciona() {
+            // cria a transação e obtem conexão com o objectStore Negociações
+            let transaction = connection.transaction(['negociacoes'], 'readwrite');
+            let store = transaction.objectStore('negociacoes');
+
+            let negociacao = new Negociacao(new Date(), 200, 1);
+            let request = store.add(negociacao);
+
+            request.onsuccess = e => {
+                console.log('negociação incluida com sucesso!');
+            }
+
+            request.onerror = e => console.log('Não foi possível incluir a negociação!');
+
+        }
+
+        function listaTodos() {        
+            let transaction = connection.transaction(['negociacoes'], 'readwrite');
+            let store = transaction.objectStore('negociacoes');
+            let negociacoes = [];
+
+            // abre o cursor para iterar os dados do Banco
+            let cursor = store.openCursor();
+
+            cursor.onsuccess = e => {
+                // retorna o ponteiro do primeiro dado do banco
+                let atual = e.target.result;
+
+                // se o ponteiro for valido, busca o dado pelo ponteiro e adiciona uma estancia no array
+                if (atual) {
+                    let dado = atual.value;
+                    negociacoes.push(new Negociacao(dado._data, dado._quantidade, dado._valor));
+
+                    // pula para o próximo ponteiro e reexecuta o onsucess!
+                    atual.continue();
+                } else {
+                    // ao final, exibe as negociações!
+                    console.log(negociacoes);
+                }
+
+            }
+
+            cursor.onerror = e => {
+                console.log('Error:' + e.target.error.name);
+            };
+        }
+    </script>
+</body>
+
+</html>
